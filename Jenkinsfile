@@ -10,11 +10,15 @@ pipeline {
   stages {
 
     stage('1-Checkout Code') {
-      steps { checkout scm }
+      steps {
+        checkout scm
+      }
     }
 
     stage('2-Build & Test') {
-      steps { sh 'mvn -B clean test' }
+      steps {
+        sh 'mvn -B clean test'
+      }
     }
 
     stage('3-Security Scan (Trivy)') {
@@ -38,8 +42,12 @@ pipeline {
     stage('4-Package') {
       steps {
         sh 'mvn -B -DskipTests package'
-        sh 'echo "Generated artifacts:"'
-        sh 'ls -la target || true'
+      }
+    }
+
+    stage('5-Archive Artifact') {
+      steps {
+        archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
       }
     }
 
