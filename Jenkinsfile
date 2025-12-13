@@ -10,23 +10,17 @@ pipeline {
   stages {
 
     stage('1-Checkout Code') {
-      steps {
-        checkout scm
-      }
+      steps { checkout scm }
     }
 
     stage('2-Build & Test') {
-      steps {
-        sh 'mvn -B clean test'
-      }
+      steps { sh 'mvn -B clean test' }
     }
 
     stage('3-Security Scan (Trivy)') {
       steps {
         sh '''
           set -e
-
-          # Install Trivy if missing (fast)
           if ! command -v trivy >/dev/null 2>&1; then
             sudo apt-get update -y
             sudo apt-get install -y wget apt-transport-https gnupg lsb-release
@@ -36,9 +30,16 @@ pipeline {
             sudo apt-get install -y trivy
           fi
 
-          # Scan repo filesystem; fail if HIGH/CRITICAL found
           trivy fs --quiet --exit-code 1 --severity ${TRIVY_SEVERITY} --ignore-unfixed .
         '''
+      }
+    }
+
+    stage('4-Package') {
+      steps {
+        sh 'mvn -B -DskipTests package'
+        sh 'echo "Generated artifacts:"'
+        sh 'ls -la target || true'
       }
     }
 
