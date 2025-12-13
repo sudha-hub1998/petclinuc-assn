@@ -4,7 +4,13 @@ pipeline {
   environment {
     JAVA_HOME = "/usr/lib/jvm/java-17-openjdk-amd64"
     PATH = "${JAVA_HOME}/bin:${env.PATH}"
+
     TRIVY_SEVERITY = "HIGH,CRITICAL"
+
+    // ---- Deploy settings ----
+    APP_HOST    = "10.0.1.254"
+    APP_DIR     = "/opt/petclinic"
+    APP_SERVICE = "petclinic"
   }
 
   stages {
@@ -17,6 +23,8 @@ pipeline {
 
     stage('2-Build & Test') {
       steps {
+        sh 'java -version'
+        sh 'mvn -version'
         sh 'mvn -B clean test'
       }
     }
@@ -42,6 +50,7 @@ pipeline {
     stage('4-Package') {
       steps {
         sh 'mvn -B -DskipTests package'
+        sh 'ls -la target || true'
       }
     }
 
@@ -51,5 +60,35 @@ pipeline {
       }
     }
 
+    stage('6-Deploy to App Server (main only)') {
+      when { branch 'main' }
+
+      steps {
+        withCredentials([
+          sshUserPrivateKey(
+            credentialsId: 'app-server',      // ✅ your Jenkins credential ID
+            keyFileVariable: 'SSH_KEY',
+            usernameVariable: 'SSH_USER'
+          )
+        ]) {
+          sh '''
+            set -e
+
+            # Pick the first jar from target/
+            JAR=$(ls -1 target/*.jar | head -n 1)
+
+            echo "Deploying $JAR to ${SSH_USER}@${APP_HOST}:${APP_DIR}/app.jar"
+
+            # Copy jar to app server
+            scp -i "$SSH_KEY" -o StrictHostKeyChecking=no "$JAR" \
+              "${SSH_USER}@${APP_HOST}:${APP_DIR}/app.jar"
+
+            # Restart service on app server
+            ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "${SSH_USER}@${APP_HOST}" \
+              "sudo systemctl daemon-reload && sudo systemctl restart ${APP_SERVICE} && sudo systemctl status ${APP_SERVICE} --no-pager -l"
+          '''
+        }
+      }
+    }
   }
 }
