@@ -2,15 +2,9 @@ pipeline {
   agent { label 'agent-node' }
 
   environment {
-    // Force Java 17 for this pipeline
     JAVA_HOME = "/usr/lib/jvm/java-17-openjdk-amd64"
     PATH = "${JAVA_HOME}/bin:${env.PATH}"
-
-    // OWASP Dependency-Check cache location (speeds up future runs)
-    ODC_DATA_DIR = "/home/ubuntu/odc-data"
-
-    // Security threshold (keep 7 for strict gate; change to 10 if you want it to pass while learning next stages)
-    ODC_FAIL_CVSS = "7"
+    TRIVY_SEVERITY = "HIGH,CRITICAL"
   }
 
   stages {
@@ -23,27 +17,28 @@ pipeline {
 
     stage('2-Build & Test') {
       steps {
-        sh 'java -version'
-        sh 'mvn -version'
         sh 'mvn -B clean test'
       }
     }
 
-    stage('3-Security Scan (OWASP - Learning Mode)') {
+    stage('3-Security Scan (Trivy)') {
       steps {
-        sh """
+        sh '''
           set -e
-          echo "OWASP Dependency-Check (LEARNING MODE): using cached DB, skipping updates"
 
-          mvn -B org.owasp:dependency-check-maven:check \\
-            -DfailBuildOnCVSS=${ODC_FAIL_CVSS} \\
-            -DdataDirectory=${ODC_DATA_DIR} \\
-            -DskipNVDUpdates=true \\
-            -DcisaEnabled=false \\
-            -DossindexAnalyzerEnabled=false
+          # Install Trivy if missing (fast)
+          if ! command -v trivy >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+            wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
+            echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+            sudo apt-get update -y
+            sudo apt-get install -y trivy
+          fi
 
-          echo "Report generated: target/dependency-check-report.html"
-        """
+          # Scan repo filesystem; fail if HIGH/CRITICAL found
+          trivy fs --quiet --exit-code 1 --severity ${TRIVY_SEVERITY} --ignore-unfixed .
+        '''
       }
     }
 
