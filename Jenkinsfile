@@ -7,11 +7,11 @@ pipeline {
   }
 
   stages {
-    stage('Build') {
+    stage('Checkout Code') {
       steps {
-        sh 'java -version'
-        sh 'mvn -version'
-        sh 'mvn -B -DskipTests clean package'
+        checkout scm
+        sh 'echo "Workspace contents:"'
+        sh 'ls -la'
       }
     }
   }
