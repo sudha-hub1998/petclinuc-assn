@@ -8,9 +8,9 @@ pipeline {
     TRIVY_SEVERITY = "HIGH,CRITICAL"
 
     // ---- Deploy settings ----
-    APP_HOST    = "10.0.1.254"
-    APP_DIR     = "/opt/petclinic"
-    APP_SERVICE = "petclinic"
+    APP_HOST    = "10.0.1.126"
+    APP_DIR     = "/opt/pet-clinic"
+    APP_SERVICE = "pet-clinic"
   }
 
   stages {
