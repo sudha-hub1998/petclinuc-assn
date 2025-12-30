@@ -2,7 +2,7 @@ pipeline {
   agent { label 'agent-node' }
 
   environment {
-    JAVA_HOME = "/usr/lib/jvm/java-17-openjdk-amd64"
+    JAVA_HOME = "/usr/lib/jvm/java-21.0.9-openjdk-amd64"
     PATH = "${JAVA_HOME}/bin:${env.PATH}"
 
     TRIVY_SEVERITY = "HIGH,CRITICAL"
